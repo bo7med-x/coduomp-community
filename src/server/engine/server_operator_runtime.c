@@ -24,6 +24,7 @@ enum {
 };
 
 #define SERVER_CONSOLE_CHAT_PREFIX "console: "
+#define SERVER_SAY2_CHAT_PREFIX "^2[Server]^7 "
 
 extern serverStatic_t svs;
 extern cvar_t *sv_running;
@@ -143,6 +144,33 @@ void SV_ConSay_f(void)
         return;
     }
     memcpy(text + sizeof(SERVER_CONSOLE_CHAT_PREFIX) - 1,
+           message, messageLength + 1);
+    SV_SendServerCommand(NULL, qfalse, "h \"\x15%s\"", text);
+}
+
+void SV_ConSay2_f(void)
+{
+    if (sv_running->integer == 0) {
+        Com_Printf("Server is not running.\n");
+        return;
+    }
+    if (Cmd_Argc() <= 1) {
+        return;
+    }
+
+    char text[MAX_STRING_CHARS] = SERVER_SAY2_CHAT_PREFIX;
+    const char *message = Cmd_Args(1);
+    if (message[0] == '"') {
+        char *const unquoted = (char *)message + 1;
+        unquoted[strlen(unquoted) - 1] = '\0';
+        message = unquoted;
+    }
+    const size_t messageLength = strlen(message);
+    if (messageLength > sizeof(text) - sizeof(SERVER_SAY2_CHAT_PREFIX)) {
+        Com_Printf("SV_ConSay2_f: console message is too long\n");
+        return;
+    }
+    memcpy(text + sizeof(SERVER_SAY2_CHAT_PREFIX) - 1,
            message, messageLength + 1);
     SV_SendServerCommand(NULL, qfalse, "h \"\x15%s\"", text);
 }
@@ -319,11 +347,13 @@ void SV_RemoveOperatorCommands(void)
 void SV_AddDedicatedCommands(void)
 {
     Cmd_AddCommand("say", SV_ConSay_f);
+    Cmd_AddCommand("say2", SV_ConSay2_f);
     Cmd_AddCommand("tell", SV_ConTell_f);
 }
 
 void SV_RemoveDedicatedCommands(void)
 {
     Cmd_RemoveCommand("say");
+    Cmd_RemoveCommand("say2");
     Cmd_RemoveCommand("tell");
 }

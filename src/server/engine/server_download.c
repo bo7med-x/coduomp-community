@@ -3,6 +3,7 @@
 #include "qcommon/com_sprintf.h"
 #include "filesystem/filesystem.h"
 #include "filesystem/filesystem_path_security.h"
+#include "qcommon/net_text.h"
 #include "qcommon/q_command.h"
 #include "qcommon/q_cvar.h"
 #include "qcommon/q_memory.h"
@@ -26,6 +27,9 @@ enum {
 extern serverStatic_t svs;
 extern cvar_t *sv_allowDownload;
 extern cvar_t *sv_maxRate;
+extern cvar_t *sv_fastDownload;
+extern cvar_t *sv_downloadNotifications;
+extern cvar_t *sv_downloadLog;
 extern cvar_t *sv_pure;
 extern cvar_t *sv_wwwBaseURL;
 extern cvar_t *sv_wwwDlDisconnected;
@@ -33,6 +37,9 @@ extern cvar_t *sv_wwwDownload;
 
 void Com_DPrintf(const char *format, ...);
 void Com_Printf(const char *format, ...);
+void SV_SendServerCommand(client_t *client, qboolean reliable,
+                          const char *format, ...);
+
 /*
  * Complete server download lifecycle shared by the Windows listen-server
  * engine and Linux dedicated engine.
@@ -55,6 +62,31 @@ void Com_Printf(const char *format, ...);
  * zone allocation used for download blocks; Linux emits the ordinary call.
  * The supporting Mac client supplies the canonical function names above.
  */
+
+/* NOT_FROM_ORIGINAL_SOURCE: convenience helper that appends a single
+ * download event line to downloads.log. Uses the filesystem's FS_APPEND
+ * mode (already used by server_authorize.c for ban.txt). */
+static void SV_LogDownload(const client_t *client)
+{
+    int32_t fileHandle;
+
+    if (FS_FOpenFileByMode("downloads.log", &fileHandle, FS_APPEND) < 0) {
+        Com_Printf("WARNING: could not open downloads.log for append\n");
+        return;
+    }
+
+    char line[MAX_STRING_CHARS];
+    const int32_t lineLength = Com_sprintf(
+        line, sizeof(line),
+        "%s (%s) downloading: %s (%i bytes)\n",
+        client->name,
+        NET_AdrToString(client->netchan.remoteAddress),
+        client->download.fileName,
+        client->download.fileSize);
+
+    (void)FS_Write(line, lineLength, fileHandle);
+    FS_FCloseFile(fileHandle);
+}
 
 void SV_CloseDownload(client_t *client)
 {
@@ -320,6 +352,17 @@ void SV_WriteDownloadToClient(client_t *client, msg_t *message)
         client->download.redirectActive = qfalse;
         client->download.fileSize = FS_SV_FOpenFileRead(
             client->download.fileName, &client->download.fileHandle);
+        if (client->download.fileSize > 0) {
+            if (sv_downloadNotifications->integer != 0) {
+                SV_SendServerCommand(client, qtrue,
+                    "print \"^3[Download] ^7%s ^7(%i bytes)\n\"",
+                    client->download.fileName,
+                    client->download.fileSize);
+            }
+            if (sv_downloadLog->integer != 0) {
+                SV_LogDownload(client);
+            }
+        }
         if (client->download.fileSize <= 0) {
             Com_Printf("clientDownload: %d : \"%s\" file not found on "
                        "server\n",
@@ -387,7 +430,13 @@ void SV_WriteDownloadToClient(client_t *client, msg_t *message)
     }
 
     int32_t blockBudget;
-    if (rate == 0) {
+    if (sv_fastDownload->integer != 0) {
+        /* Fast download: ignore the rate-based budget and send many blocks
+         * per frame so clients can pull files at line speed. The value is
+         * deliberately conservative; higher values risk packet loss on
+         * poor connections. */
+        blockBudget = sv_fastDownload->integer;
+    } else if (rate == 0) {
         blockBudget = 1;
     } else {
         const int32_t bytesPerSnapshot =

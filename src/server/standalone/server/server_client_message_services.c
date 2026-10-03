@@ -22,8 +22,8 @@ void server_compat_emit_drop_messages(client_t *client, const char *name,
                              name, dropReason);
     }
 
-    Com_Printf("%i:%s %s\n", (int32_t)(client - svs.clients), name,
-               dropReason);
+    Com_Printf("\x02%i:\x04%s \x05%s\n",
+               (int32_t)(client - svs.clients), name, dropReason);
     /* NOT_FROM_ORIGINAL_SOURCE: keep the drop reason as data through the
      * single server-command formatting pass. */
     SV_SendServerCommand(client, qtrue, "w \"%s\"", dropReason);

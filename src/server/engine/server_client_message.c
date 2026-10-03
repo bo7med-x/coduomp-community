@@ -120,6 +120,9 @@ void SV_DropClient(client_t *client, const char *dropReason)
 
     char name[SERVER_DROP_NAME_BUFFER_SIZE];
     strcpy(name, client->name);
+    /* NOT_FROM_ORIGINAL_SOURCE: only broadcast a leave notification for
+     * clients that had actually joined the game (state >= CS_CONNECTED).
+     * This avoids spurious messages for handshake failures. */
     SV_FreeClient(client);
     Com_DPrintf("Going to CS_ZOMBIE for %s\n", name);
     client->state = CS_ZOMBIE;
@@ -449,6 +452,7 @@ void SV_ClientThink(client_t *client, const usercmd_t *command)
     }
 }
 
+void SV_WelcomePlayer(client_t *client);
 void SV_UserMove(client_t *client, msg_t *message, qboolean delta)
 {
     usercmd_t nullCommand;
@@ -510,6 +514,7 @@ void SV_UserMove(client_t *client, msg_t *message, qboolean delta)
     if (client->state == CS_PRIMED) {
         XAnimSetUser(XANIM_USER_SERVER);
         SV_ClientEnterWorld(client, commands);
+        SV_WelcomePlayer(client);
     }
 
     if (sv_pure->integer != 0 &&

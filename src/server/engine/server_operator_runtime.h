@@ -8,6 +8,7 @@ extern "C" {
 void SV_Status_f(void);
 void SV_ConSay_f(void);
 void SV_ConTell_f(void);
+void SV_ConSay2_f(void);
 void SV_Heartbeat_f(void);
 void SV_Serverinfo_f(void);
 void SV_Systeminfo_f(void);

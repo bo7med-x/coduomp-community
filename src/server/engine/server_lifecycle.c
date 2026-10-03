@@ -56,6 +56,13 @@ extern cvar_t *sv_mapRotationCurrent;
 extern cvar_t *sv_wwwDownload;
 extern cvar_t *sv_wwwBaseURL;
 extern cvar_t *sv_wwwDlDisconnected;
+cvar_t *sv_fastDownload;
+cvar_t *sv_downloadNotifications;
+cvar_t *sv_downloadLog;
+cvar_t *sv_maxConnectionsPerIP;
+cvar_t *sv_welcome;
+cvar_t *sv_welcomeLocation;
+cvar_t *sv_debug;
 extern int32_t com_errorEntered;
 
 void Com_Printf(const char *format, ...);
@@ -144,6 +151,32 @@ void SV_Init(void)
     sv_wwwDownload = Cvar_Get("sv_wwwDownload", "0", CVAR_ARCHIVE);
     sv_wwwBaseURL = Cvar_Get("sv_wwwBaseURL", "", CVAR_ARCHIVE);
     sv_wwwDlDisconnected = Cvar_Get("sv_wwwDlDisconnected", "0", CVAR_ARCHIVE);
+    /* Fast download: when non-zero, this many 2KB blocks are sent per
+     * snapshot frame instead of deriving the budget from client rate.
+     * Typical values: 8 (slow connection), 16 (balanced), 32 (fast LAN).
+     * 0 disables the feature and preserves original behavior. */
+    sv_fastDownload = Cvar_Get("sv_fastDownload", "0", CVAR_ARCHIVE);
+    /* Show download notifications to players (file name + size). */
+    sv_downloadNotifications = Cvar_Get("sv_downloadNotifications", "0",
+                                        CVAR_ARCHIVE);
+    /* Append download events to downloads.log for admin auditing. */
+    sv_downloadLog = Cvar_Get("sv_downloadLog", "0", CVAR_ARCHIVE);
+    /* Limit the number of simultaneous connections allowed from a single
+     * IP address. 0 disables the limit. Recommended for public servers:
+     * 2 or 3. Connections from the loopback address (LAN/local) bypass
+     * this check. */
+    sv_maxConnectionsPerIP = Cvar_Get("sv_maxConnectionsPerIP", "0",
+                                      CVAR_ARCHIVE);
+    /* Welcome message shown to each player on first connect.
+     * Use %s for the player name. */
+    sv_welcome = Cvar_Get("sv_welcome", "", CVAR_ARCHIVE);
+    /* What %loc expands to:
+     *   0 = disabled (empty string)
+     *   1 = country only              (e.g. "Egypt")
+     *   2 = city + country            (e.g. "Cairo, Egypt")
+     *   3 = region + city + country   (e.g. "Cairo, Cairo, Egypt") */
+    sv_welcomeLocation = Cvar_Get("sv_welcomeLocation", "2", CVAR_ARCHIVE);
+    sv_debug = Cvar_Get("sv_debug", "0", CVAR_ARCHIVE);
 }
 
 void SV_FinalMessage(const char *message)

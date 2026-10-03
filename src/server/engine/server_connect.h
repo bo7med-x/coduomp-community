@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 void SV_DirectConnect(netadr_t from);
+void SV_BroadcastConnection(const char *name, qboolean joined);
 
 #ifdef __cplusplus
 }
