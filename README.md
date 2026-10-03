@@ -1,3 +1,15 @@
+# coduomp-community
+
+> **A community fork of [coduomp](https://github.com/opencoduo/coduomp)
+> with additional features for Call of Duty: United Offensive servers.**
+>
+> See [CREDITS.md](CREDITS.md) for full attribution and the list of
+> features added by this fork.
+>
+> Not affiliated with Activision.
+
+---
+
 <p align="center">
   <img src="assets/coduomp-icon-master.png" alt="Blue star logo" width="280">
 </p>
